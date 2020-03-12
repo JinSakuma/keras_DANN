@@ -15,7 +15,7 @@ from keras.backend import tensorflow_backend as K
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from data_generator3 import DataGenerator
+from data_generator import DataGenerator
 
 config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
 session = tf.Session(config=config)
@@ -41,7 +41,7 @@ class DANN():
         if not os.path.exists(self.output_name):
             os.makedirs(self.output_name, exist_ok=True)
 
-        self.output_file = open(self.output_name+"/progress.csv", "w")
+        self.output_file = open(os.path.join(self.output_name, "progress.csv"), "w")
         names = ["epoch", "lr_lambda", "hp_lambda", "loss_d_t", "acc_d_t",
                  "loss_c_t", "acc_c_t", "loss_d_v", "acc_d_v", "loss_c_v_s",
                  "acc_c_v_s", "loss_c_v_t", "acc_c_v_t"]
@@ -87,7 +87,8 @@ class DANN():
         # h = layers.Dense(50, activation='relu')(h)
         outY = h
 
-        return Network(inp, outY, name="extracter")
+        return Model(inp, outY, name="extracter")
+#         return Network(inp, outY, name="extracter")
 
     def _build_classifier(self):
         inp = Input(shape=(self.n_features,))
@@ -97,7 +98,8 @@ class DANN():
         h = layers.Dense(10, activation='softmax')(h)
         outY = h
 
-        return Network(inp, outY, name="classifier")
+#         return Network(inp, outY, name="classifier")
+        return Model(inp, outY, name="classifier")
 
     def _build_discriminator(self):
         inp = Input(shape=(self.n_features,))
@@ -107,7 +109,8 @@ class DANN():
         # h = layers.Dense(   2, activation='softmax')(h)
         outY = h
 
-        return Network(inp, outY, name="discriminator")
+        return Model(inp, outY, name="discriminator")
+#         return Network(inp, outY, name="discriminator")
 
     def _lr_scheduler(self, epoch, max_epoch):
         mu0 = 0.01
@@ -150,7 +153,7 @@ class DANN():
             K.set_value(self.gradInv.hp_lambda, self._hp_scheduler(epoch, nEpochs))
             lr = self._lr_scheduler(epoch, nEpochs)
             self.compile(self.classifier, lr, name='classifier')
-            self.compile(self.discriminator, lr*0.5, name='discrimimator')
+            self.compile(self.discriminator, lr*0.1, name='discrimimator')
 
             # train
             res_S_train = np.array([0., 0.])
@@ -211,7 +214,7 @@ class DANN():
 
             # save weights when Target loss is the minimum
             if acc_T_val >= prev:
-                self.classifier.save_weights('output/dann_acc-{:.2f}_loss-{:.2f}.hdf5'.format(acc_T_val, los_T_val))
+                self.classifier.save_weights(os.path.join(self.output_name, 'dann_acc-{:.2f}_loss-{:.2f}.hdf5'.format(acc_T_val, los_T_val)))
                 prev = acc_T_val
 
             # draw graph
@@ -255,6 +258,6 @@ class DANN():
         target_res = self.classifier.evaluate_generator(gen_T_val, steps=len(gen_T_val))
         print("Target Acc: %.2f" % target_res[1])
         # save model
-        self.classifier.save_weights('output/source_only_{:.2f}.hdf5'.format(target_res[1]*100))
+        self.classifier.save_weights(os.path.join(self.output_name, '/source_only_{:.2f}.hdf5'.format(target_res[1]*100)))
         # initialize model
         # self._build_models()
